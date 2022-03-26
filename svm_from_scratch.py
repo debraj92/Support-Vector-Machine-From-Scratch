@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.optimize import Bounds, BFGS
 from scipy.optimize import LinearConstraint, minimize
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 
 class MySVM:
@@ -9,6 +11,7 @@ class MySVM:
     isTrained = False
     w_opt = -1
     b_opt = -1
+    alpha = []
 
     def calculate_lagrange_dual(self, alpha, x, t):
         """
@@ -112,9 +115,9 @@ class MySVM:
         :return:
         """
         self.isTrained = False
-        alpha = self.optimize_alpha(x, t, C)
-        self.w_opt = self.calculate_w_optimum(alpha, t, x)
-        self.b_opt = self.calculate_b_optimum(alpha, t, x, self.w_opt)
+        self.alpha = self.optimize_alpha(x, t, C)
+        self.w_opt = self.calculate_w_optimum(self.alpha, t, x)
+        self.b_opt = self.calculate_b_optimum(self.alpha, t, x, self.w_opt)
         self.isTrained = True
 
     def classify(self, x_test):
@@ -135,10 +138,42 @@ class MySVM:
         N = len(labels)
         return (labels == predictions).sum() / N * 100
 
+    def plot_x(self, x, labels, C=0):
+        sns.scatterplot(x[:, 0], x[:, 1], style=labels,
+                        hue=labels, markers=['s', 'P'],
+                        palette=['magenta', 'green'])
+        if len(self.alpha) > 0:
+            alpha_str = np.char.mod('%.1f', np.round(self.alpha, 1))
+            ind_sv = np.where(self.alpha > self.ZERO)[0]
+            for i in ind_sv:
+                plt.gca().text(x[i, 0], x[i, 1] - .25, alpha_str[i])
+
+    def plot_hyperplane(self):
+        w = self.w_opt
+        w0 = self.b_opt
+        x_coord = np.array(plt.gca().get_xlim())
+        y_coord = -w0 / w[1] - w[0] / w[1] * x_coord
+        plt.plot(x_coord, y_coord, color='red')
+
+    def plot_margin(self):
+        w = self.w_opt
+        w0 = self.b_opt
+        x_coord = np.array(plt.gca().get_xlim())
+        ypos_coord = 1 / w[1] - w0 / w[1] - w[0] / w[1] * x_coord
+        plt.plot(x_coord, ypos_coord, '--', color='green')
+        yneg_coord = -1 / w[1] - w0 / w[1] - w[0] / w[1] * x_coord
+        plt.plot(x_coord, yneg_coord, '--', color='magenta')
+
 
 data = np.array([[0, 3], [-1, 0], [1, 2], [2, 1], [3, 3], [0, 0], [-1, -1], [-3, 1], [3, 1]])
 labels = np.array([1, 1, 1, 1, 1, -1, -1, -1, -1])
 svm = MySVM()
-svm.train(data, labels, 100)
+C=100
+svm.train(data, labels, C)
 predictions = svm.classify(data)
-print(svm.accuracy(predictions, labels))
+print("Accuracy ",svm.accuracy(predictions, labels))
+
+svm.plot_x(data, labels, C)
+svm.plot_hyperplane()
+svm.plot_margin()
+plt.savefig("linear-svm-plot.png")
