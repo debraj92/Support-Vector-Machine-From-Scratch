@@ -138,15 +138,10 @@ class MySVM:
         N = len(labels)
         return (labels == predictions).sum() / N * 100
 
-    def plot_x(self, x, labels, C=0):
+    def plot_x(self, x, labels):
         sns.scatterplot(x[:, 0], x[:, 1], style=labels,
                         hue=labels, markers=['s', 'P'],
                         palette=['magenta', 'green'])
-        if len(self.alpha) > 0:
-            alpha_str = np.char.mod('%.1f', np.round(self.alpha, 1))
-            ind_sv = np.where(self.alpha > self.ZERO)[0]
-            for i in ind_sv:
-                plt.gca().text(x[i, 0], x[i, 1] - .25, alpha_str[i])
 
     def plot_hyperplane(self):
         w = self.w_opt
@@ -165,15 +160,40 @@ class MySVM:
         plt.plot(x_coord, yneg_coord, '--', color='magenta')
 
 
-data = np.array([[0, 3], [-1, 0], [1, 2], [2, 1], [3, 3], [0, 0], [-1, -1], [-3, 1], [3, 1]])
-labels = np.array([1, 1, 1, 1, 1, -1, -1, -1, -1])
-svm = MySVM()
-C=100
-svm.train(data, labels, C)
-predictions = svm.classify(data)
-print("Accuracy ",svm.accuracy(predictions, labels))
+data_train = np.array([[2, 1], [1, 4], [4, 1], [2, 3], [6, -2], [0, 0], [3, -2], [-1, 5], [-1, 6], [0, 4], [4, 2], [6, 0], [8, -1], [9, -2], [3, 3], [1, 5], [1, 6], [4, 4], [5, 3], [-1, 9], [0, 7]])
+labels_train = np.array([1, -1, 1, 1, -1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, 1, -1, 1, -1, -1])
 
-svm.plot_x(data, labels, C)
+data_val = np.array([[2, 4], [0, 5], [5, -1], [-1, 7], [-2, 9], [4, 0], [8, -2], [3, 5]])
+labels_val = np.array([-1, 1, 1, 1, -1, 1, -1, -1])
+
+data_test = np.array([[-2, 7], [-1, 4], [-3, 9], [7, -4], [4, -1], [3, 2], [1, 3], [1, 8], [2, 5], [3, 6], [7, -2], [8, -3], [-2, 10], [0, 10], [2, 10]])
+labels_test = np.array([1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1])
+
+svm = MySVM()
+# regularization choices for c
+c_values = [0.0001, 0.001, 0.1, 100, 1000, 10000]
+w_best, b_best = None, None
+val_accuracy_best = -1
+for c in c_values:
+    svm.train(data_train, labels_train, c)
+    predictions = svm.classify(data_val)
+    val_accuracy = svm.accuracy(predictions, labels_val)
+    if val_accuracy > val_accuracy_best:
+        val_accuracy_best = val_accuracy
+        w_best = svm.w_opt
+        b_best = svm.b_opt
+
+    print("Validation Accuracy, C value ", (val_accuracy, c))
+
+svm.w_opt = w_best
+svm.b_opt = b_best
+
+svm.plot_x(data_train, labels_train)
 svm.plot_hyperplane()
 svm.plot_margin()
 plt.savefig("linear-svm-plot.png")
+
+predictions = svm.classify(data_test)
+print("Test Accuracy ", svm.accuracy(predictions, labels_test))
+
+
