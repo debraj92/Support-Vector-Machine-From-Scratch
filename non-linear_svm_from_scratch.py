@@ -9,7 +9,7 @@ Implementation of Non-Linear SVM with polynomial and gaussian (rbf) kernel.
 """
 
 
-class MySVM_PolynomialKernel:
+class MySVM_NonLinearKernel:
     ZERO = 1e-7
 
     isTrained = False
@@ -241,7 +241,7 @@ class MySVM_PolynomialKernel:
 
 
 def executeExamplePolynomialSVM():
-    svm2 = MySVM_PolynomialKernel("poly")
+    svm2 = MySVM_NonLinearKernel("poly")
 
     x = np.array(
         [[-0.5, 0], [-0.7, -2], [0, 1.2], [0.3, 0.9], [0.7, 3], [-0.5, 0], [0.5, 0.3], [-0.6, -1], [0, 0.5], [0.3, 0],
@@ -276,7 +276,7 @@ def executeExamplePolynomialSVM():
 
 
 def executeExampleRBFSVM():
-    svm2 = MySVM_PolynomialKernel("RBF")
+    svm2 = MySVM_NonLinearKernel("RBF")
 
     x = np.array(
         [[2.8, 2], [3.1, 4], [-1, 4], [-0.5, 1], [1, 1], [1, 5], [1.8, 1.3], [2.9, 4.5], [1.7, 5.3], [-1.3, 1.6],
