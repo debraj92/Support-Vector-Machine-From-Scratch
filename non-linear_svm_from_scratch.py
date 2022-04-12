@@ -18,11 +18,17 @@ class MySVM_NonLinearKernel:
     alpha = []
     KernelFunction = None
 
+    class HyperParameter:
+        polynomial_degree = None
+        gaussian_gamma = None
+
     def __init__(self, kernel="poly"):
         if kernel.lower() == "poly":
             self.KernelFunction = self.polynomialKernelTransform
         elif kernel.lower() == "rbf":
             self.KernelFunction = self.gaussianKernelTransform
+
+        self.hyperparameter = None
 
     def lagrange_dual(self, alpha, x, t):
         """
@@ -60,27 +66,27 @@ class MySVM_NonLinearKernel:
 
         exp(−gamma * |x−z|^2)
 
-        where gamma is a hyper-parameter. I have set it to 0.1.
+        where gamma is a hyper-parameter. It is determined by cross validation
 
         :param X:
         :param Z:
         :return:
         """
-        gamma = 0.1
-        return np.exp(-gamma * np.linalg.norm(X - Z) ** 2)
+
+        return np.exp(-self.hyperparameter.gaussian_gamma * np.linalg.norm(X - Z) ** 2)
 
     def polynomialKernelTransform(self, X, Z):
         """
         The Kernel function for polynomial transformation is:
         (1 + x.z)^n
 
-        Where n is a hyper-parameter that indicates the degree of the polynomial. We have chosen 3 here.
+        Where n is a hyper-parameter that indicates the degree of the polynomial. It is determined by cross validation.
 
         :param X:
         :param Z:
         :return:
         """
-        return (np.dot(X, Z) + 1) ** 3
+        return (np.dot(X, Z) + 1) ** self.hyperparameter.polynomial_degree
 
     def optimize_alpha(self, x, t, C):
         """
@@ -169,7 +175,7 @@ class MySVM_NonLinearKernel:
     def reset(self):
         self.isTrained = False
 
-    def train(self, x, t, C):
+    def train(self, x, t, C, params):
         """
         Calculate w_optimum and b_optimum for the SVM
 
@@ -179,6 +185,7 @@ class MySVM_NonLinearKernel:
         :return:
         """
         self.isTrained = False
+        self.hyperparameter = params
         self.alpha = self.optimize_alpha(x, t, C)
         self.isTrained = True
 
@@ -254,6 +261,9 @@ def executeExamplePolynomialSVM():
     plt.savefig('training-data-polynomial-svm.png')
     plt.clf()
 
+    x_val = np.array([[0.7, 3], [0.5, 0.5], [0.3, 1.5], [-0.5, 0.5], [-0.4, 2], [-0.8, -2], [0.8, 6], [1, 10], [-0.8, -5], [1.5, 5], [1.3, 3], [0.5, -0.5], [0.2, 0.3], [-0.3, -3], [-0.8, -10], [2, 1], [1.5, 15]])
+    labels_val = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1])
+
     x_test = np.array(
         [[2, 2], [-0.5, 2], [0.5, -2], [-2, 0.5], [0, 0], [0.3, 1.2], [0, 0.3], [0.1, 1.3], [0.6, 0.4], [0.6, -0.4],
          [0.7, 4], [-2, -3]])
@@ -265,8 +275,26 @@ def executeExamplePolynomialSVM():
     plt.savefig('testing-data-polynomial-svm.png')
 
     C = 100
-    # SVM trains using the training data and corresponding target values in a supervised fashion.
-    svm2.train(x, labels, C)
+    polynomial_values = [2, 3, 4, 5]
+    accuracy_best = -1
+    n_best = -1
+
+    for n in polynomial_values:
+        hyp = MySVM_NonLinearKernel.HyperParameter()
+        hyp.polynomial_degree = n
+
+        # SVM trains using the training data and corresponding target values in a supervised fashion.
+        svm2.train(x, labels, C, hyp)
+        y_val = svm2.classify_points(svm2.alpha, labels, x, x_val)
+        accuracy_val = svm2.accuracy(y_val, labels_val)
+        print("Accuracy on validation set of Polynomial SVM for degree %s is %s" % (n, accuracy_val))
+        if accuracy_val > accuracy_best:
+            accuracy_best = accuracy_val
+            n_best = n
+
+    hyp = MySVM_NonLinearKernel.HyperParameter()
+    hyp.polynomial_degree = n_best
+    svm2.train(x, labels, C, hyp)
 
     # SVM inference uses the test data. It does not use labels_test which is the expected class of the test data samples.
     y_test = svm2.classify_points(svm2.alpha, labels, x, x_test)
@@ -291,6 +319,9 @@ def executeExampleRBFSVM():
     plt.savefig('training-data-rbf-svm.png')
     plt.clf()
 
+    x_val = np.array([[0, 1.4], [2.1, 1], [3, 3], [-1, 3], [-0.5, 5], [1, 5], [2, 4], [1, 4.4], [0.3, 4.3], [-0.5, 3], [0, 2], [1, 1.8], [2.5, 2.5]])
+    labels_val = np.array([1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1])
+
     x_test = np.array(
         [[0.4, 3.6], [1, 4], [1.3, 2.4], [2, 3], [0.4, 2.9], [-1, 1.4], [2.5, 5], [2.2, 1.4], [-0.9, 4.6], [1, 0.2],
          [4, 3], [-3, 1]])
@@ -303,9 +334,26 @@ def executeExampleRBFSVM():
     svm2.plot_x_test(x_test, labels_test)
     plt.savefig('testing-data-rbf-svm.png')
 
+    gamma_values = [0.001, 0.01, 0.1, 1, 10]
     C = 100
-    # SVM trains using the training data and corresponding target values in a supervised fashion.
-    svm2.train(x, labels, C)
+    accuracy_best = -1
+    gamma_best = -1
+
+    for gamma in gamma_values:
+        hyp = MySVM_NonLinearKernel.HyperParameter()
+        hyp.gaussian_gamma = gamma
+        # SVM trains using the training data and corresponding target values in a supervised fashion.
+        svm2.train(x, labels, C, hyp)
+        y_val = svm2.classify_points(svm2.alpha, labels, x, x_val)
+        accuracy_val = svm2.accuracy(y_val, labels_val)
+        print("Accuracy on validation set of RBF SVM for gamma %s is %s" % (gamma, accuracy_val))
+        if accuracy_val > accuracy_best:
+            accuracy_best = accuracy_val
+            gamma_best = gamma
+
+    hyp = MySVM_NonLinearKernel.HyperParameter()
+    hyp.gaussian_gamma = gamma_best
+    svm2.train(x, labels, C, hyp)
 
     # SVM inference uses the test data. It does not use labels_test which is the expected class of the test data samples.
     y_test = svm2.classify_points(svm2.alpha, labels, x, x_test)
@@ -314,5 +362,4 @@ def executeExampleRBFSVM():
 
 
 executeExamplePolynomialSVM()
-
 executeExampleRBFSVM()
