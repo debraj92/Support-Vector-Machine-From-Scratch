@@ -183,7 +183,7 @@ for c in c_values:
         w_best = svm.w_opt
         b_best = svm.b_opt
 
-    print("Validation Accuracy, C value ", (val_accuracy, c))
+    print("Validation Accuracy is %s for C value %s" % (val_accuracy, c))
 
 svm.w_opt = w_best
 svm.b_opt = b_best
@@ -191,7 +191,13 @@ svm.b_opt = b_best
 svm.plot_x(data_train, labels_train)
 svm.plot_hyperplane()
 svm.plot_margin()
-plt.savefig("linear-svm-plot.png")
+plt.savefig("linear-svm-plot-train.png")
+plt.clf()
+
+svm.plot_x(data_test, labels_test)
+svm.plot_hyperplane()
+svm.plot_margin()
+plt.savefig("linear-svm-plot-test.png")
 
 predictions = svm.classify(data_test)
 print("Test Accuracy ", svm.accuracy(predictions, labels_test))
