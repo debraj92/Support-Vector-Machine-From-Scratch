@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.optimize import Bounds, BFGS
 from scipy.optimize import LinearConstraint, minimize
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 
 class MySVM:
@@ -9,6 +11,7 @@ class MySVM:
     isTrained = False
     w_opt = -1
     b_opt = -1
+    alpha = []
 
     def calculate_lagrange_dual(self, alpha, x, t):
         """
@@ -112,9 +115,9 @@ class MySVM:
         :return:
         """
         self.isTrained = False
-        alpha = self.optimize_alpha(x, t, C)
-        self.w_opt = self.calculate_w_optimum(alpha, t, x)
-        self.b_opt = self.calculate_b_optimum(alpha, t, x, self.w_opt)
+        self.alpha = self.optimize_alpha(x, t, C)
+        self.w_opt = self.calculate_w_optimum(self.alpha, t, x)
+        self.b_opt = self.calculate_b_optimum(self.alpha, t, x, self.w_opt)
         self.isTrained = True
 
     def classify(self, x_test):
@@ -135,10 +138,68 @@ class MySVM:
         N = len(labels)
         return (labels == predictions).sum() / N * 100
 
+    def plot_x(self, x, labels):
+        sns.scatterplot(x[:, 0], x[:, 1], style=labels,
+                        hue=labels, markers=['s', 'P'],
+                        palette=['magenta', 'green'])
 
-data = np.array([[0, 3], [-1, 0], [1, 2], [2, 1], [3, 3], [0, 0], [-1, -1], [-3, 1], [3, 1]])
-labels = np.array([1, 1, 1, 1, 1, -1, -1, -1, -1])
+    def plot_hyperplane(self):
+        w = self.w_opt
+        w0 = self.b_opt
+        x_coord = np.array(plt.gca().get_xlim())
+        y_coord = -w0 / w[1] - w[0] / w[1] * x_coord
+        plt.plot(x_coord, y_coord, color='red')
+
+    def plot_margin(self):
+        w = self.w_opt
+        w0 = self.b_opt
+        x_coord = np.array(plt.gca().get_xlim())
+        ypos_coord = 1 / w[1] - w0 / w[1] - w[0] / w[1] * x_coord
+        plt.plot(x_coord, ypos_coord, '--', color='green')
+        yneg_coord = -1 / w[1] - w0 / w[1] - w[0] / w[1] * x_coord
+        plt.plot(x_coord, yneg_coord, '--', color='magenta')
+
+
+data_train = np.array([[2, 1], [1, 4], [4, 1], [2, 3], [6, -2], [0, 0], [3, -2], [-1, 5], [-1, 6], [0, 4], [4, 2], [6, 0], [8, -1], [9, -2], [3, 3], [1, 5], [1, 6], [4, 4], [5, 3], [-1, 9], [0, 7]])
+labels_train = np.array([1, -1, 1, 1, -1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, 1, -1, 1, -1, -1])
+
+data_val = np.array([[2, 4], [0, 5], [5, -1], [-1, 7], [-2, 9], [4, 0], [8, -2], [3, 5]])
+labels_val = np.array([-1, 1, 1, 1, -1, 1, -1, -1])
+
+data_test = np.array([[-2, 7], [-1, 4], [-3, 9], [7, -4], [4, -1], [3, 2], [1, 3], [1, 8], [2, 5], [3, 6], [7, -2], [8, -3], [-2, 10], [0, 10], [2, 10]])
+labels_test = np.array([1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1])
+
 svm = MySVM()
-svm.train(data, labels, 100)
-predictions = svm.classify(data)
-print(svm.accuracy(predictions, labels))
+# regularization choices for c
+c_values = [0.0001, 0.001, 0.1, 100, 1000, 10000]
+w_best, b_best = None, None
+val_accuracy_best = -1
+for c in c_values:
+    svm.train(data_train, labels_train, c)
+    predictions = svm.classify(data_val)
+    val_accuracy = svm.accuracy(predictions, labels_val)
+    if val_accuracy > val_accuracy_best:
+        val_accuracy_best = val_accuracy
+        w_best = svm.w_opt
+        b_best = svm.b_opt
+
+    print("Validation Accuracy is %s for C value %s" % (val_accuracy, c))
+
+svm.w_opt = w_best
+svm.b_opt = b_best
+
+svm.plot_x(data_train, labels_train)
+svm.plot_hyperplane()
+svm.plot_margin()
+plt.savefig("linear-svm-plot-train.png")
+plt.clf()
+
+svm.plot_x(data_test, labels_test)
+svm.plot_hyperplane()
+svm.plot_margin()
+plt.savefig("linear-svm-plot-test.png")
+
+predictions = svm.classify(data_test)
+print("Test Accuracy ", svm.accuracy(predictions, labels_test))
+
+
